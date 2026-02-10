@@ -1,0 +1,27 @@
+# Build output
+bin/
+*.prg
+*.prg.debug.xml
+
+# Generated files
+gen/
+
+# Compiler intermediate files
+internal-mir/
+mir/
+
+# Settings (device-specific)
+LEDWF-settings.json
+
+# IDE / Editor
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dropbox conflict files
+*conflicted copy*
