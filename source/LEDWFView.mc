@@ -1,3 +1,4 @@
+import Toybox.Application;
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.System;
@@ -399,6 +400,15 @@ class LEDWFView extends WatchUi.WatchFace {
     private var _screenWidth as Number = 0;
     private var _screenHeight as Number = 0;
 
+    // 上一秒位置（用于 onPartialUpdate 清除旧点）
+    private var _prevSec as Number or Null = null;
+
+    // 缓存冒号和心形位置（供 onPartialUpdate 使用）
+    private var _colonX as Number = 0;
+    private var _colonY as Number = 0;
+    private var _heartDrawX as Number = 0;
+    private var _heartDrawY as Number = 0;
+
     // Pre-computed marquee coordinates (60 points, absolute screen positions)
     private var _marqueeX = new [60];
     private var _marqueeY = new [60];
@@ -409,6 +419,10 @@ class LEDWFView extends WatchUi.WatchFace {
     private var _pieCCWDx = new [24];
     private var _pieCCWDy = new [24];
     private var _pieRadius as Number = 0;
+
+    // 一周运动缓存（避免每帧遍历历史记录）
+    private var _weeklyActivityCache as Array<Boolean> = [false, false, false, false, false, false, false] as Array<Boolean>;
+    private var _cachedDay as Number = -1;  // 缓存对应的日期，用于日期变更时刷新
 
     // Layout fine-tuning offsets (named constants replacing magic numbers)
     private var _adjWeekdayX as Number = 85;   // weekday X position adjustment
@@ -421,9 +435,19 @@ class LEDWFView extends WatchUi.WatchFace {
 
     function initialize() {
         WatchFace.initialize();
+        loadSettings();
+    }
+
+    // 从设置中加载颜色
+    function loadSettings() as Void {
+        var color = Application.Properties.getValue("ForegroundColor");
+        if (color != null && color instanceof Number) {
+            _ledOn = color as Number;
+        }
     }
 
     function onLayout(dc as Dc) as Void {
+        loadSettings();
         _fireIcon = WatchUi.loadResource(Rez.Drawables.FireIcon) as BitmapResource;
         _stepIcon = WatchUi.loadResource(Rez.Drawables.StepIcon) as BitmapResource;
         _screenWidth = dc.getWidth();
@@ -442,6 +466,7 @@ class LEDWFView extends WatchUi.WatchFace {
             _dotHSpacing = 5;
         }
         precomputeCoordinates();
+        refreshWeeklyActivityCache();
     }
 
     // Pre-compute all trigonometric coordinates to avoid Math.sin/cos in onUpdate
@@ -879,6 +904,8 @@ class LEDWFView extends WatchUi.WatchFace {
         currentX += digitWidth + gap;
 
         // 冒号
+        _colonX = currentX;
+        _colonY = startY;
         var colonOn = (clockTime.sec % 2 == 0);
         drawColon(dc, currentX, startY, colonOn);
         currentX += colonWidth + gap;
@@ -891,16 +918,18 @@ class LEDWFView extends WatchUi.WatchFace {
         drawDigit(dc, currentX, startY, minutes % 10);
         currentX += digitWidth + gap;
 
-        // 绘制AM/PM（在时间右侧）
-        var ampmGap = _dotHSpacing;
-        var ampmX = currentX + ampmGap + _adjAmpmX;
-        var ampmY = startY + (digitHeight - letterHeight) / 2 + _adjAmpmY;
-        if (isPM) {
-            drawLetter(dc, ampmX, ampmY, "P");
-            drawLetter(dc, ampmX, ampmY + letterHeight + _adjAmpmGap, "M");
-        } else {
-            drawLetter(dc, ampmX, ampmY, "A");
-            drawLetter(dc, ampmX, ampmY + letterHeight + _adjAmpmGap, "M");
+        // 绘制AM/PM（仅12小时制，在时间右侧）
+        if (!System.getDeviceSettings().is24Hour) {
+            var ampmGap = _dotHSpacing;
+            var ampmX = currentX + ampmGap + _adjAmpmX;
+            var ampmY = startY + (digitHeight - letterHeight) / 2 + _adjAmpmY;
+            if (isPM) {
+                drawLetter(dc, ampmX, ampmY, "P");
+                drawLetter(dc, ampmX, ampmY + letterHeight + _adjAmpmGap, "M");
+            } else {
+                drawLetter(dc, ampmX, ampmY, "A");
+                drawLetter(dc, ampmX, ampmY + letterHeight + _adjAmpmGap, "M");
+            }
         }
 
         // 电池条（水平居中）
@@ -917,6 +946,8 @@ class LEDWFView extends WatchUi.WatchFace {
 
         var heartX = colonCenterScreenX - heartWidth / 2;
         var heartY = batteryBarY + _dotSpacing * 3;
+        _heartDrawX = heartX;
+        _heartDrawY = heartY;
         drawHeart(dc, heartX, heartY, heartOn);
 
         // 心率数值居中于冒号（在心形下方）
@@ -968,9 +999,15 @@ class LEDWFView extends WatchUi.WatchFace {
         var weekTotalWidth = 7 * (weekBlockSize + _dotHSpacing) + 6 * weekBlockGap;
         var weekX = colonCenterScreenX - weekTotalWidth / 2;
         var weekY = hrY + _tinyDigitRows * _dotSpacing + _dotSpacing * 2;
-        var weekActivity = getWeeklyActivity(weekday);
-        drawWeeklyDots(dc, weekX, weekY, weekActivity);
+        // 日期变更时刷新一周运动缓存
+        if (day != _cachedDay) {
+            _cachedDay = day;
+            refreshWeeklyActivityCache();
+        }
+        drawWeeklyDots(dc, weekX, weekY, _weeklyActivityCache);
 
+        // 记录当前秒，供onPartialUpdate首次调用时清除该亮点
+        _prevSec = clockTime.sec;
     }
 
     // 获取一周运动情况（7个布尔值，0=周日 到 6=周六）
@@ -1001,6 +1038,15 @@ class LEDWFView extends WatchUi.WatchFace {
         }
 
         return result;
+    }
+
+    // 刷新一周运动缓存
+    function refreshWeeklyActivityCache() as Void {
+        var now = Time.now();
+        var info = Time.Gregorian.info(now, Time.FORMAT_SHORT);
+        var weekday = info.day_of_week - 1;
+        _cachedDay = info.day;
+        _weeklyActivityCache = getWeeklyActivity(weekday);
     }
 
     // 绘制一周运动格子（7个2x2方块，亮=运动，灭=未运动）
@@ -1077,6 +1123,78 @@ class LEDWFView extends WatchUi.WatchFace {
             }
             dc.fillCircle(_marqueeX[s], _marqueeY[s], _dotSize / 2);
         }
+    }
+
+    // 绘制或清除单个秒针点（使用 setClip 限制重绘区域）
+    function updateSecondDot(dc as Dc, sec as Number, isDraw as Boolean) as Void {
+        var x = _marqueeX[sec] as Number;
+        var y = _marqueeY[sec] as Number;
+        var r = _dotSize / 2;
+        var margin = 2;  // 留余量防残留
+        dc.setClip(x - r - margin, y - r - margin, _dotSize + margin * 2, _dotSize + margin * 2);
+        dc.setColor(_bgColor, _bgColor);
+        dc.clear();
+        dc.setColor(isDraw ? _ledOn : _ledOff, _bgColor);
+        dc.fillCircle(x, y, r);
+        dc.clearClip();
+    }
+
+    // 局部重绘冒号（使用 setClip）
+    function updateColon(dc as Dc, isOn as Boolean) as Void {
+        var digitHeight = _digitRows * _dotSpacing;
+        var topY = _colonY + digitHeight / 3;
+        var bottomY = _colonY + 2 * digitHeight / 3;
+        var r = _dotSize / 2;
+        var margin = 2;
+        // clip 覆盖冒号的上下两组点
+        var clipX = _colonX - r - margin;
+        var clipY = topY - r - margin;
+        var clipW = 2 * _dotHSpacing + _dotSize + margin * 2;
+        var clipH = (bottomY + _dotSpacing) - topY + _dotSize + margin * 2;
+        dc.setClip(clipX, clipY, clipW, clipH);
+        dc.setColor(_bgColor, _bgColor);
+        dc.clear();
+        drawColon(dc, _colonX, _colonY, isOn);
+        dc.clearClip();
+    }
+
+    // 局部重绘心形（使用 setClip）
+    function updateHeart(dc as Dc, isOn as Boolean) as Void {
+        var r = _dotSize / 2;
+        var margin = 2;
+        var clipX = _heartDrawX - r - margin;
+        var clipY = _heartDrawY - r - margin;
+        var clipW = (_heartCols - 1) * _dotHSpacing + _dotSize + margin * 2;
+        var clipH = (_heartRows - 1) * _dotSpacing + _dotSize + margin * 2;
+        dc.setClip(clipX, clipY, clipW, clipH);
+        dc.setColor(_bgColor, _bgColor);
+        dc.clear();
+        drawHeart(dc, _heartDrawX, _heartDrawY, isOn);
+        dc.clearClip();
+    }
+
+    // 熄屏模式下每秒调用，仅重绘秒针变化的点、冒号和心形
+    function onPartialUpdate(dc as Dc) as Void {
+        if (System.getSystemStats().battery <= 20.0) {
+            return;
+        }
+
+        var sec = System.getClockTime().sec;
+        var isOn = (sec % 2 == 0);
+
+        // 清除上一秒的点（变为 LED 灭色）
+        if (_prevSec != null && _prevSec != sec) {
+            updateSecondDot(dc, _prevSec as Number, false);
+        }
+
+        // 绘制当前秒的点（变为 LED 亮色）
+        updateSecondDot(dc, sec, true);
+
+        // 闪烁冒号和心形
+        updateColon(dc, isOn);
+        updateHeart(dc, isOn);
+
+        _prevSec = sec;
     }
 
 }

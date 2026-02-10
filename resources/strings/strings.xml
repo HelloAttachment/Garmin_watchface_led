@@ -12,5 +12,10 @@
     <string id="ColorWhite">White</string>
     <string id="ColorBlue">Blue</string>
     <string id="ColorRed">Red</string>
+    <string id="ColorGreen">Green</string>
+    <string id="ColorCyan">Cyan</string>
+    <string id="ColorYellow">Yellow</string>
+    <string id="ColorOrange">Orange</string>
+    <string id="ColorPurple">Purple</string>
 
 </strings>
