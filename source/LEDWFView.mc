@@ -23,373 +23,93 @@ class LEDWFView extends WatchUi.WatchFace {
     private var _heartCols as Number = 5;
     private var _heartRows as Number = 4;
 
-    // 心形点阵模式 (5列 x 4行)
-    private var _heartPattern as Array<Array<Number> > = [
-        [0, 1, 0, 1, 0],
-        [1, 1, 1, 1, 1],
-        [0, 1, 1, 1, 0],
-        [0, 0, 1, 0, 0]
-    ];
+    // 心形点阵模式 (5列 x 4行) - 每行用位掩码表示
+    private var _heartPattern as Array<Number> = [10, 31, 14, 4];
 
     // 心率数字点阵尺寸 (3列 x 5行)
     private var _tinyDigitCols as Number = 3;
     private var _tinyDigitRows as Number = 5;
 
-    // 心率数字点阵模式 (3列 x 5行)
-    private var _tinyDigitPatterns as Array<Array<Array<Number> > > = [
-        // 数字 0
-        [[1,1,1], [1,0,1], [1,0,1], [1,0,1], [1,1,1]],
-        // 数字 1
-        [[0,1,0], [1,1,0], [0,1,0], [0,1,0], [1,1,1]],
-        // 数字 2
-        [[1,1,1], [0,0,1], [1,1,1], [1,0,0], [1,1,1]],
-        // 数字 3
-        [[1,1,1], [0,0,1], [1,1,1], [0,0,1], [1,1,1]],
-        // 数字 4
-        [[1,0,1], [1,0,1], [1,1,1], [0,0,1], [0,0,1]],
-        // 数字 5
-        [[1,1,1], [1,0,0], [1,1,1], [0,0,1], [1,1,1]],
-        // 数字 6
-        [[1,1,1], [1,0,0], [1,1,1], [1,0,1], [1,1,1]],
-        // 数字 7
-        [[1,1,1], [0,0,1], [0,0,1], [0,0,1], [0,0,1]],
-        // 数字 8
-        [[1,1,1], [1,0,1], [1,1,1], [1,0,1], [1,1,1]],
-        // 数字 9
-        [[1,1,1], [1,0,1], [1,1,1], [0,0,1], [1,1,1]]
+    // 心率数字点阵模式 (3列 x 5行) - 每行用位掩码表示
+    private var _tinyDigitPatterns as Array<Array<Number> > = [
+        [7, 5, 5, 5, 7],  // 0
+        [2, 6, 2, 2, 7],  // 1
+        [7, 1, 7, 4, 7],  // 2
+        [7, 1, 7, 1, 7],  // 3
+        [5, 5, 7, 1, 1],  // 4
+        [7, 4, 7, 1, 7],  // 5
+        [7, 4, 7, 5, 7],  // 6
+        [7, 1, 1, 1, 1],  // 7
+        [7, 5, 7, 5, 7],  // 8
+        [7, 5, 7, 1, 7]   // 9
     ];
-
 
     // 笑脸点阵尺寸 (9列 x 9行)
     private var _faceCols as Number = 9;
     private var _faceRows as Number = 9;
 
     // 笑脸 - 身体电量充足 (>= 60)
-    private var _faceHappy as Array<Array<Number> > = [
-        [0, 0, 1, 1, 1, 1, 1, 0, 0],
-        [0, 1, 0, 0, 0, 0, 0, 1, 0],
-        [1, 0, 0, 1, 0, 1, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 1, 1, 1, 0, 0, 1],
-        [0, 1, 0, 0, 0, 0, 0, 1, 0],
-        [0, 0, 1, 1, 1, 1, 1, 0, 0]
-    ];
+    private var _faceHappy as Array<Number> = [124, 130, 297, 257, 257, 325, 313, 130, 124];
 
     // 平脸 - 身体电量一般 (25-59)
-    private var _faceNeutral as Array<Array<Number> > = [
-        [0, 0, 1, 1, 1, 1, 1, 0, 0],
-        [0, 1, 0, 0, 0, 0, 0, 1, 0],
-        [1, 0, 0, 1, 0, 1, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 1, 1, 1, 0, 0, 1],
-        [0, 1, 0, 0, 0, 0, 0, 1, 0],
-        [0, 0, 1, 1, 1, 1, 1, 0, 0]
-    ];
+    private var _faceNeutral as Array<Number> = [124, 130, 297, 257, 257, 257, 313, 130, 124];
 
     // 难过脸 - 身体电量低 (< 25)
-    private var _faceSad as Array<Array<Number> > = [
-        [0, 0, 1, 1, 1, 1, 1, 0, 0],
-        [0, 1, 0, 0, 0, 0, 0, 1, 0],
-        [1, 0, 0, 1, 0, 1, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 1, 1, 1, 0, 0, 1],
-        [1, 0, 1, 0, 0, 0, 1, 0, 1],
-        [0, 1, 0, 0, 0, 0, 0, 1, 0],
-        [0, 0, 1, 1, 1, 1, 1, 0, 0]
-    ];
+    private var _faceSad as Array<Number> = [124, 130, 297, 257, 257, 313, 325, 130, 124];
 
     // 数字点阵宽高
     private var _digitCols as Number = 6;   // 6列
     private var _digitRows as Number = 12;  // 12行
-    
+
     // 字母点阵宽高
     private var _letterCols as Number = 4;  // 4列
     private var _letterRows as Number = 5;   // 5行
 
-    // 字母点阵模式 (4列 x 5行) - 用于星期显示，增加尺寸
-    // 1 = 亮, 0 = 灭
-    private var _letterPatterns as Array<Array<Array<Number> > > = [
-        // 字母 M (MON)
-        [
-            [1, 0, 0, 1],
-            [1, 1, 1, 1],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1]
-        ],
-        // 字母 O (MON, TUE, WED, THU, FRI, SAT, SUN)
-        [
-            [0, 1, 1, 0],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [0, 1, 1, 0]
-        ],
-        // 字母 N (MON)
-        [
-            [1, 0, 0, 1],
-            [1, 1, 0, 1],
-            [1, 0, 1, 1],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1]
-        ],
-        // 字母 T (TUE, THU)
-        [
-            [1, 1, 1, 1],
-            [0, 1, 1, 0],
-            [0, 1, 1, 0],
-            [0, 1, 1, 0],
-            [0, 1, 1, 0]
-        ],
-        // 字母 U (TUE)
-        [
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [0, 1, 1, 0]
-        ],
-        // 字母 E (WED)
-        [
-            [1, 1, 1, 1],
-            [1, 0, 0, 0],
-            [1, 1, 1, 0],
-            [1, 0, 0, 0],
-            [1, 1, 1, 1]
-        ],
-        // 字母 W (WED)
-        [
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [1, 0, 1, 1],
-            [1, 1, 0, 1],
-            [1, 0, 0, 1]
-        ],
-        // 字母 D (THU, FRI, SAT, SUN)
-        [
-            [1, 1, 1, 0],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [1, 1, 1, 0]
-        ],
-        // 字母 H (THU)
-        [
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [1, 1, 1, 1],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1]
-        ],
-        // 字母 F (FRI)
-        [
-            [1, 1, 1, 1],
-            [1, 0, 0, 0],
-            [1, 1, 1, 0],
-            [1, 0, 0, 0],
-            [1, 0, 0, 0]
-        ],
-        // 字母 R (FRI)
-        [
-            [1, 1, 1, 0],
-            [1, 0, 0, 1],
-            [1, 1, 1, 0],
-            [1, 1, 0, 0],
-            [1, 0, 0, 1]
-        ],
-        // 字母 I (SAT)
-        [
-            [1, 1, 1, 1],
-            [0, 1, 0, 0],
-            [0, 1, 0, 0],
-            [0, 1, 0, 0],
-            [1, 1, 1, 1]
-        ],
-        // 字母 S (SAT, SUN)
-        [
-            [0, 1, 1, 1],
-            [1, 0, 0, 0],
-            [0, 1, 1, 0],
-            [0, 0, 0, 1],
-            [1, 1, 1, 0]
-        ],
-        // 字母 A (SAT)
-        [
-            [0, 1, 1, 0],
-            [1, 0, 0, 1],
-            [1, 1, 1, 1],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1]
-        ],
-        // 字母 P (PM)
-        [
-            [1, 1, 1, 0],
-            [1, 0, 0, 1],
-            [1, 1, 1, 0],
-            [1, 0, 0, 0],
-            [1, 0, 0, 0]
-        ],
+    // 字母点阵模式 (4列 x 5行) - 每行用位掩码表示
+    private var _letterPatterns as Array<Array<Number> > = [
+        [9, 15, 9, 9, 9],     // M
+        [6, 9, 9, 9, 6],      // O
+        [9, 13, 11, 9, 9],    // N
+        [15, 6, 6, 6, 6],     // T
+        [9, 9, 9, 9, 6],      // U
+        [15, 8, 14, 8, 15],   // E
+        [9, 9, 11, 13, 9],    // W
+        [14, 9, 9, 9, 14],    // D
+        [9, 9, 15, 9, 9],     // H
+        [15, 8, 14, 8, 8],    // F
+        [14, 9, 14, 12, 9],   // R
+        [15, 4, 4, 4, 15],    // I
+        [7, 8, 6, 1, 14],     // S
+        [6, 9, 15, 9, 9],     // A
+        [14, 9, 14, 8, 8],    // P
     ];
 
-    // 数字点阵模式 (6列 x 12行)
-    // 1 = 亮, 0 = 灭
-    // 实心填充，无缺角
-    private var _digitPatterns as Array<Array<Array<Number> > > = [
-        // 数字 0
-        [
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1]
-        ],
-        // 数字 1
-        [
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1]
-        ],
-        // 数字 2
-        [
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 0, 0, 0],
-            [1, 1, 0, 0, 0, 0],
-            [1, 1, 0, 0, 0, 0],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1]
-        ],
-        // 数字 3
-        [
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1]
-        ],
-        // 数字 4
-        [
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1]
-        ],
-        // 数字 5
-        [
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 0, 0, 0],
-            [1, 1, 0, 0, 0, 0],
-            [1, 1, 0, 0, 0, 0],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1]
-        ],
-        // 数字 6
-        [
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 0, 0, 0],
-            [1, 1, 0, 0, 0, 0],
-            [1, 1, 0, 0, 0, 0],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1]
-        ],
-        // 数字 7
-        [
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1]
-        ],
-        // 数字 8
-        [
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1]
-        ],
-        // 数字 9
-        [
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 0, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [0, 0, 0, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1]
-        ]
+    // 数字点阵模式 (6列 x 12行) - 每行用位掩码表示
+    private var _digitPatterns as Array<Array<Number> > = [
+        [63, 63, 51, 51, 51, 51, 51, 51, 51, 51, 63, 63],  // 0
+        [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],              // 1
+        [63, 63, 3, 3, 3, 63, 63, 48, 48, 48, 63, 63],      // 2
+        [63, 63, 3, 3, 3, 63, 63, 3, 3, 3, 63, 63],         // 3
+        [51, 51, 51, 51, 51, 63, 63, 3, 3, 3, 3, 3],        // 4
+        [63, 63, 48, 48, 48, 63, 63, 3, 3, 3, 63, 63],      // 5
+        [63, 63, 48, 48, 48, 63, 63, 51, 51, 51, 63, 63],   // 6
+        [63, 63, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],             // 7
+        [63, 63, 51, 51, 51, 63, 63, 51, 51, 51, 63, 63],   // 8
+        [63, 63, 51, 51, 51, 63, 63, 3, 3, 3, 63, 63]       // 9
+    ];
+
+    // 小数字点阵模式 (4列 x 5行) - 每行用位掩码表示
+    private var _smallDigitPatterns as Array<Array<Number> > = [
+        [6, 9, 9, 9, 6],      // 0
+        [6, 14, 6, 6, 15],    // 1
+        [6, 9, 3, 6, 15],     // 2
+        [6, 9, 3, 9, 6],      // 3
+        [11, 11, 15, 3, 3],   // 4
+        [15, 8, 14, 1, 14],   // 5
+        [6, 9, 14, 9, 6],     // 6
+        [15, 1, 3, 6, 6],     // 7
+        [6, 9, 6, 9, 6],      // 8
+        [6, 9, 7, 1, 14]      // 9
     ];
 
     // 图标资源
@@ -423,6 +143,12 @@ class LEDWFView extends WatchUi.WatchFace {
     // 一周运动缓存（避免每帧遍历历史记录）
     private var _weeklyActivityCache as Array<Boolean> = [false, false, false, false, false, false, false] as Array<Boolean>;
     private var _cachedDay as Number = -1;  // 缓存对应的日期，用于日期变更时刷新
+
+    // 星期名称（避免每帧分配）
+    private var _weekdayNames as Array<String> = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+    // 活动数据缓存（避免每帧分配新数组）[steps, stepGoal, calories, calorieGoal]
+    private var _activityCache as Array<Number> = [0, 10000, 0, 2000];
 
     // Layout fine-tuning offsets (named constants replacing magic numbers)
     private var _adjWeekdayX as Number = 85;   // weekday X position adjustment
@@ -512,11 +238,12 @@ class LEDWFView extends WatchUi.WatchFace {
         dc.fillCircle(x, y, _dotSize / 2);
     }
 
-    // 绘制心形图标
+    // 绘制心形图标（位掩码版本）
     function drawHeart(dc as Dc, x as Number, y as Number, isOn as Boolean) as Void {
         for (var row = 0; row < _heartRows; row++) {
+            var rowBits = _heartPattern[row];
             for (var col = 0; col < _heartCols; col++) {
-                if (_heartPattern[row][col] == 1) {
+                if (((rowBits >> (_heartCols - 1 - col)) & 1) == 1) {
                     drawColorDot(dc, x + col * _dotHSpacing, y + row * _dotSpacing, isOn, _ledOn);
                 }
             }
@@ -533,13 +260,15 @@ class LEDWFView extends WatchUi.WatchFace {
         return 0;
     }
 
-    // 绘制微型数字（3x5点阵，用于心率）
+    // 绘制微型数字（3x5点阵，用于心率，位掩码版本）
     function drawTinyDigit(dc as Dc, x as Number, y as Number, digit as Number) as Void {
         var pattern = _tinyDigitPatterns[digit];
         for (var row = 0; row < _tinyDigitRows; row++) {
+            var rowBits = pattern[row];
             for (var col = 0; col < _tinyDigitCols; col++) {
-                var isOn = (pattern[row][col] == 1);
-                drawDot(dc, x + col * _dotHSpacing, y + row * _dotSpacing, isOn);
+                if (((rowBits >> (_tinyDigitCols - 1 - col)) & 1) == 1) {
+                    drawDot(dc, x + col * _dotHSpacing, y + row * _dotSpacing, true);
+                }
             }
         }
     }
@@ -604,7 +333,7 @@ class LEDWFView extends WatchUi.WatchFace {
         return -1;
     }
 
-    // 绘制表情（根据身体电量选择）
+    // 绘制表情（根据身体电量选择，位掩码版本）
     function drawFace(dc as Dc, x as Number, y as Number, bodyBattery as Number) as Void {
         var pattern;
         if (bodyBattery >= 60) {
@@ -616,34 +345,40 @@ class LEDWFView extends WatchUi.WatchFace {
         }
 
         for (var row = 0; row < _faceRows; row++) {
+            var rowBits = pattern[row];
             for (var col = 0; col < _faceCols; col++) {
-                var isOn = (pattern[row][col] == 1);
-                drawDot(dc, x + col * _dotHSpacing, y + row * _dotSpacing, isOn);
+                if (((rowBits >> (_faceCols - 1 - col)) & 1) == 1) {
+                    drawDot(dc, x + col * _dotHSpacing, y + row * _dotSpacing, true);
+                }
             }
         }
     }
 
-    // 绘制一个数字（完整矩形点阵）
+    // 绘制一个数字（位掩码版本）
     function drawDigit(dc as Dc, x as Number, y as Number, digit as Number) as Void {
         var pattern = _digitPatterns[digit];
 
         for (var row = 0; row < _digitRows; row++) {
+            var rowBits = pattern[row];
             for (var col = 0; col < _digitCols; col++) {
-                var isOn = (pattern[row][col] == 1);
-                drawDot(dc, x + col * _dotHSpacing, y + row * _dotSpacing, isOn);
+                if (((rowBits >> (_digitCols - 1 - col)) & 1) == 1) {
+                    drawDot(dc, x + col * _dotHSpacing, y + row * _dotSpacing, true);
+                }
             }
         }
     }
 
-    // 绘制一个字母（4x8点阵）
+    // 绘制一个字母（位掩码版本）
     function drawLetter(dc as Dc, x as Number, y as Number, letter as String) as Void {
         var patternIndex = getLetterPatternIndex(letter);
         var pattern = _letterPatterns[patternIndex];
 
         for (var row = 0; row < _letterRows; row++) {
+            var rowBits = pattern[row];
             for (var col = 0; col < _letterCols; col++) {
-                var isOn = (pattern[row][col] == 1);
-                drawDot(dc, x + col * _dotHSpacing, y + row * _dotSpacing, isOn);
+                if (((rowBits >> (_letterCols - 1 - col)) & 1) == 1) {
+                    drawDot(dc, x + col * _dotHSpacing, y + row * _dotSpacing, true);
+                }
             }
         }
     }
@@ -669,12 +404,11 @@ class LEDWFView extends WatchUi.WatchFace {
             default: return 0;
         }
     }
-    
-    // 绘制星期几缩写
+
+    // 绘制星期几缩写（使用缓存的星期名称数组）
     function drawWeekday(dc as Dc, x as Number, y as Number, weekday as Number) as Void {
-        var weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-        var weekdayStr = weekdays[weekday];
-        
+        var weekdayStr = _weekdayNames[weekday];
+
         var letterWidth = _letterCols * _dotHSpacing;
         var letterGap = _dotHSpacing;
 
@@ -703,99 +437,17 @@ class LEDWFView extends WatchUi.WatchFace {
             }
         }
     }
-    
-    // 小数字点阵模式 (4列 x 5行) - 用于日期显示
-    private var _smallDigitPatterns as Array<Array<Array<Number> > > = [
-        // 数字 0
-        [
-            [0, 1, 1, 0],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [1, 0, 0, 1],
-            [0, 1, 1, 0]
-        ],
-        // 数字 1
-        [
-            [0, 1, 1, 0],
-            [1, 1, 1, 0],
-            [0, 1, 1, 0],
-            [0, 1, 1, 0],
-            [1, 1, 1, 1]
-        ],
-        // 数字 2
-        [
-            [0, 1, 1, 0],
-            [1, 0, 0, 1],
-            [0, 0, 1, 1],
-            [0, 1, 1, 0],
-            [1, 1, 1, 1]
-        ],
-        // 数字 3
-        [
-            [0, 1, 1, 0],
-            [1, 0, 0, 1],
-            [0, 0, 1, 1],
-            [1, 0, 0, 1],
-            [0, 1, 1, 0]
-        ],
-        // 数字 4
-        [
-            [1, 0, 1, 1],
-            [1, 0, 1, 1],
-            [1, 1, 1, 1],
-            [0, 0, 1, 1],
-            [0, 0, 1, 1]
-        ],
-        // 数字 5
-        [
-            [1, 1, 1, 1],
-            [1, 0, 0, 0],
-            [1, 1, 1, 0],
-            [0, 0, 0, 1],
-            [1, 1, 1, 0]
-        ],
-        // 数字 6
-        [
-            [0, 1, 1, 0],
-            [1, 0, 0, 1],
-            [1, 1, 1, 0],
-            [1, 0, 0, 1],
-            [0, 1, 1, 0]
-        ],
-        // 数字 7
-        [
-            [1, 1, 1, 1],
-            [0, 0, 0, 1],
-            [0, 0, 1, 1],
-            [0, 1, 1, 0],
-            [0, 1, 1, 0]
-        ],
-        // 数字 8
-        [
-            [0, 1, 1, 0],
-            [1, 0, 0, 1],
-            [0, 1, 1, 0],
-            [1, 0, 0, 1],
-            [0, 1, 1, 0]
-        ],
-        // 数字 9
-        [
-            [0, 1, 1, 0],
-            [1, 0, 0, 1],
-            [0, 1, 1, 1],
-            [0, 0, 0, 1],
-            [1, 1, 1, 0]
-        ]
-    ];
-    
-    // 绘制小数字（4x5点阵，与字母大小一致）
+
+    // 绘制小数字（4x5点阵，位掩码版本）
     function drawSmallDigit(dc as Dc, x as Number, y as Number, digit as Number) as Void {
         var pattern = _smallDigitPatterns[digit];
 
         for (var row = 0; row < _letterRows; row++) {
+            var rowBits = pattern[row];
             for (var col = 0; col < _letterCols; col++) {
-                var isOn = (pattern[row][col] == 1);
-                drawDot(dc, x + col * _dotHSpacing, y + row * _dotSpacing, isOn);
+                if (((rowBits >> (_letterCols - 1 - col)) & 1) == 1) {
+                    drawDot(dc, x + col * _dotHSpacing, y + row * _dotSpacing, true);
+                }
             }
         }
     }
@@ -857,7 +509,7 @@ class LEDWFView extends WatchUi.WatchFace {
 
         // 绘制星期几
         drawWeekday(dc, weekdayX + _dotHSpacing, weekdayY + _dotSpacing, weekday);
-        
+
         // 在星期右边绘制日期 (月日)
         var dateGap = _dotHSpacing * 2;
         var dateX = weekdayX + weekdayWidth + dateGap;
@@ -868,11 +520,11 @@ class LEDWFView extends WatchUi.WatchFace {
         // 绘制月（使用字母尺寸的数字）
         drawSmallDigit(dc, dateX + _dotHSpacing, dateY + _dotSpacing, month / 10);
         drawSmallDigit(dc, dateX + _dotHSpacing + letterWidth + _dotHSpacing, dateY + _dotSpacing, month % 10);
-        
+
         // 绘制分隔符（小点）
         var separatorX = dateX + _dotHSpacing + 2 * letterWidth + 2 * _dotHSpacing;
         drawDot(dc, separatorX, dateY + letterHeight / 2, true);
-        
+
         // 绘制日（使用字母尺寸的数字）
         var dayStartX = separatorX + separatorWidth + _dotHSpacing;
         drawSmallDigit(dc, dayStartX, dateY + _dotSpacing, day / 10);
@@ -964,12 +616,12 @@ class LEDWFView extends WatchUi.WatchFace {
         var pieGap = _dotHSpacing * 2;
         var pieCenterY = heartY + heartHeight / 2 + _adjPieCenterY;
 
-        // 获取活动数据（单次调用）
-        var actData = getActivityData();
-        var steps = actData[0];
-        var stepGoal = actData[1];
-        var calories = actData[2];
-        var calGoal = actData[3];
+        // 获取活动数据（使用缓存数组，无分配）
+        refreshActivityCache();
+        var steps = _activityCache[0];
+        var stepGoal = _activityCache[1];
+        var calories = _activityCache[2];
+        var calGoal = _activityCache[3];
 
         // 步数饼状图（心形左侧）
         var stepPieCenterX = heartX - pieGap - _pieRadius - _adjPieX;
@@ -1049,6 +701,22 @@ class LEDWFView extends WatchUi.WatchFace {
         _weeklyActivityCache = getWeeklyActivity(weekday);
     }
 
+    // 刷新活动数据到缓存数组（无分配）
+    function refreshActivityCache() as Void {
+        var info = ActivityMonitor.getInfo();
+        if (info != null) {
+            _activityCache[0] = (info.steps != null) ? info.steps : 0;
+            _activityCache[1] = (info.stepGoal != null) ? info.stepGoal : 10000;
+            _activityCache[2] = (info.calories != null) ? info.calories : 0;
+            _activityCache[3] = (info has :calorieGoal && info.calorieGoal != null) ? info.calorieGoal : 2000;
+        } else {
+            _activityCache[0] = 0;
+            _activityCache[1] = 10000;
+            _activityCache[2] = 0;
+            _activityCache[3] = 2000;
+        }
+    }
+
     // 绘制一周运动格子（7个2x2方块，亮=运动，灭=未运动）
     function drawWeeklyDots(dc as Dc, x as Number, y as Number, activity as Array<Boolean>) as Void {
         var blockStep = _dotHSpacing + _dotHSpacing + _dotHSpacing;  // 格子宽 + 间距
@@ -1095,22 +763,6 @@ class LEDWFView extends WatchUi.WatchFace {
             }
             dc.fillCircle(cx + dxArr[i], cy + dyArr[i], _dotSize / 2);
         }
-    }
-
-    // 获取活动数据 [steps, stepGoal, calories, calorieGoal]
-    function getActivityData() as Array<Number> {
-        var info = ActivityMonitor.getInfo();
-        var steps = 0;
-        var stepGoal = 10000;
-        var calories = 0;
-        var calorieGoal = 2000;
-        if (info != null) {
-            if (info.steps != null) { steps = info.steps; }
-            if (info.stepGoal != null) { stepGoal = info.stepGoal; }
-            if (info.calories != null) { calories = info.calories; }
-            if (info has :calorieGoal && info.calorieGoal != null) { calorieGoal = info.calorieGoal; }
-        }
-        return [steps, stepGoal, calories, calorieGoal];
     }
 
     // 绘制跑马灯秒针（外圈60个点，使用预计算坐标）
