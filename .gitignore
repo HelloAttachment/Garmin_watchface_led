@@ -18,7 +18,7 @@ LEDWF-settings.json
 *.swp
 *.swo
 *~
-
+CLAUDE.md
 # OS files
 .DS_Store
 Thumbs.db

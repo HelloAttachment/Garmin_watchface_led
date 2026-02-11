@@ -1,6 +1,9 @@
 # LEDWF - LED点阵表盘 / LED Dot Matrix Watch Face
 
-## 中文版
+![hotone](./ScreenShot/hotone.png)
+![DifferentColors](./ScreenShot/DifferentColors.png)
+![BodyBattery](./ScreenShot/BodyBattery.png)
+![illustration](./ScreenShot/illusion.png)
 
 **LEDWF - LED点阵表盘**
 
