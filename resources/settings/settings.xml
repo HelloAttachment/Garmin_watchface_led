@@ -26,4 +26,8 @@
         <settingConfig type="boolean" />
     </setting>
 
+    <setting propertyKey="@Properties.HideLeadingZero" title="@Strings.HideLeadingZeroTitle">
+        <settingConfig type="boolean" />
+    </setting>
+
 </settings>

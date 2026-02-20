@@ -1,0 +1,85 @@
+# LEDWF Skill - 添加"隐藏12小时制前导零"选项
+
+## 步骤 1: View 层 - 修复坐标偏移
+
+**文件**: `source/LEDWFView.mc`
+
+**1.1 添加设置变量 (已有)**
+```monkeyc
+private var _hideLeadingZero as Boolean = false;
+```
+
+**1.2 加载设置 (已有)**
+```monkeyc
+function loadSettings() as Void {
+    _hideLeadingZero = Application.Properties.getValue("HideLeadingZero");
+    if (_hideLeadingZero == null) {
+        _hideLeadingZero = false;
+    }
+}
+```
+
+**1.3 修复坐标偏移 (关键修改)**
+```monkeyc
+// 判断是否需要隐藏前导0
+var is12Hour = !System.getDeviceSettings().is24Hour;
+var shouldHideLeadingZero = _hideLeadingZero && is12Hour && hours < 10;
+
+// 小时十位（保留空格以保持对齐）
+if (!shouldHideLeadingZero) {
+    var hourTens = hours / 10;
+    drawDigit(dc, currentX, startY, hourTens);
+}
+currentX += digitWidth + gap;  // 无论是否隐藏都前进，保持对齐
+```
+
+## 步骤 2: App 层 - 添加手表端设置菜单
+
+**文件**: `source/LEDWFApp.mc`
+
+**2.1 在 getSettingsView() 中添加 ToggleMenuItem**
+```monkeyc
+var currentHideZero = Application.Properties.getValue("HideLeadingZero") as Boolean;
+var hideZeroLabel = currentHideZero ? "On" : "Off";
+menu.addItem(
+    new WatchUi.ToggleMenuItem("Hide Leading Zero", hideZeroLabel, :hideZero, currentHideZero, null)
+);
+```
+
+**2.2 在 LEDWFSettingsDelegate.onSelect() 中处理**
+```monkeyc
+if (item.getId() == :hideZero) {
+    var toggleItem = item as WatchUi.ToggleMenuItem;
+    var isEnabled = toggleItem.isEnabled();
+    Application.Properties.setValue("HideLeadingZero", isEnabled);
+    var app = getApp();
+    if (app._view != null) {
+        app._view.loadSettings();
+    }
+}
+```
+
+## 步骤 3: XML 配置
+
+**文件**: `resources/settings/properties.xml`
+```xml
+<property id="HideLeadingZero" type="boolean">false</property>
+```
+
+**文件**: `resources/settings/settings.xml`
+```xml
+<setting propertyKey="@Properties.HideLeadingZero" title="@Strings.HideLeadingZeroTitle">
+    <settingConfig type="boolean" />
+</setting>
+```
+
+**文件**: `resources/strings/strings.xml`
+```xml
+<string id="HideLeadingZeroTitle">Hide Leading Zero in 12-Hour Time</string>
+```
+
+## 注意事项
+
+1. **坐标偏移问题**: 必须在 if 语句外增加 `currentX += digitWidth + gap`，否则隐藏前导零后会导致后续数字左移
+2. **类型转换**: 使用 `ToggleMenuItem` 时需要显式转换为 `WatchUi.ToggleMenuItem` 才能调用 `isEnabled()`
+3. **设置刷新**: 修改属性后必须调用 `app._view.loadSettings()` 才能生效

@@ -36,6 +36,13 @@ class LEDWFApp extends Application.AppBase {
             new WatchUi.MenuItem("LED Color", colors[currentIndex], :ledColor, null)
         );
 
+        // 隐藏前导零选项
+        var currentHideZero = Application.Properties.getValue("HideLeadingZero") as Boolean;
+        var hideZeroLabel = currentHideZero ? "On" : "Off";
+        menu.addItem(
+            new WatchUi.ToggleMenuItem("Hide Leading Zero", hideZeroLabel, :hideZero, currentHideZero, null)
+        );
+
         return [menu, new LEDWFSettingsDelegate()];
     }
 
@@ -67,7 +74,15 @@ class LEDWFSettingsDelegate extends WatchUi.Menu2InputDelegate {
     }
 
     function onSelect(item as WatchUi.MenuItem) as Void {
-        if (item.getId() == :ledColor) {
+        if (item.getId() == :hideZero) {
+            var toggleItem = item as WatchUi.ToggleMenuItem;
+            var isEnabled = toggleItem.isEnabled();
+            Application.Properties.setValue("HideLeadingZero", isEnabled);
+            var app = getApp();
+            if (app._view != null) {
+                app._view.loadSettings();
+            }
+        } else if (item.getId() == :ledColor) {
             // 打开颜色子菜单
             var colorMenu = new WatchUi.Menu2({:title => "LED Color"});
             var colors = ["White", "Red", "Green", "Blue", "Cyan", "Yellow", "Orange", "Purple"];

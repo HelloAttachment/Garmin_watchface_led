@@ -2,6 +2,7 @@
 bin/
 *.prg
 *.prg.debug.xml
+.claude
 
 # Generated files
 gen/

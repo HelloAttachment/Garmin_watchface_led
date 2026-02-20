@@ -123,6 +123,9 @@ class LEDWFView extends WatchUi.WatchFace {
     // 上一秒位置（用于 onPartialUpdate 清除旧点）
     private var _prevSec as Number or Null = null;
 
+    // 设置：是否隐藏12小时制前导0
+    private var _hideLeadingZero as Boolean = false;
+
     // 缓存冒号和心形位置（供 onPartialUpdate 使用）
     private var _colonX as Number = 0;
     private var _colonY as Number = 0;
@@ -169,6 +172,10 @@ class LEDWFView extends WatchUi.WatchFace {
         var color = Application.Properties.getValue("ForegroundColor");
         if (color != null && color instanceof Number) {
             _ledOn = color as Number;
+        }
+        _hideLeadingZero = Application.Properties.getValue("HideLeadingZero");
+        if (_hideLeadingZero == null) {
+            _hideLeadingZero = false;
         }
     }
 
@@ -546,9 +553,15 @@ class LEDWFView extends WatchUi.WatchFace {
 
         var currentX = startX;
 
-        // 小时十位
-        var hourTens = hours / 10;
-        drawDigit(dc, currentX, startY, hourTens);
+        // 判断是否需要隐藏前导0
+        var is12Hour = !System.getDeviceSettings().is24Hour;
+        var shouldHideLeadingZero = _hideLeadingZero && is12Hour && hours < 10;
+
+        // 小时十位（保留空格以保持对齐）
+        if (!shouldHideLeadingZero) {
+            var hourTens = hours / 10;
+            drawDigit(dc, currentX, startY, hourTens);
+        }
         currentX += digitWidth + gap;
 
         // 小时个位
