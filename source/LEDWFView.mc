@@ -123,6 +123,9 @@ class LEDWFView extends WatchUi.WatchFace {
     // 上一秒位置（用于 onPartialUpdate 清除旧点）
     private var _prevSec as Number or Null = null;
 
+    // 设置：是否使用军用时间（例如 1300）
+    private var _useMilitaryFormat as Boolean = false;
+
     // 设置：是否隐藏12小时制前导0
     private var _hideLeadingZero as Boolean = false;
 
@@ -154,7 +157,8 @@ class LEDWFView extends WatchUi.WatchFace {
     private var _activityCache as Array<Number> = [0, 10000, 0, 2000];
 
     // Layout fine-tuning offsets (named constants replacing magic numbers)
-    private var _adjWeekdayX as Number = 85;   // weekday X position adjustment
+    private var _adjWeekdayX as Number = 75;   // weekday X position adjustment
+    private var _adjDateX as Number = 0;       // date X position adjustment, 260px layout as baseline
     private var _adjBbYPad as Number = 10;     // body battery Y padding
     private var _adjAmpmX as Number = -5;      // AM/PM X fine-tune
     private var _adjAmpmY as Number = -10;     // AM/PM Y fine-tune
@@ -167,11 +171,37 @@ class LEDWFView extends WatchUi.WatchFace {
         loadSettings();
     }
 
+    // 日期X偏移软编码：按实际屏幕宽度单独调节
+    function getDateXAdjustment(screenWidth as Number) as Number {
+        switch (screenWidth) {
+            case 218: return 0;
+            case 240: return 0;
+            case 280: return 16;
+            case 360: return 24;
+            case 390: return 26;
+            case 416: return 28;
+            case 454: return 32;
+            default:
+                if (screenWidth >= 416) {
+                    return 28;
+                } else if (screenWidth >= 360) {
+                    return 24;
+                } else if (screenWidth >= 280) {
+                    return 16;
+                }
+                return 0;
+        }
+    }
+
     // 从设置中加载颜色
     function loadSettings() as Void {
         var color = Application.Properties.getValue("ForegroundColor");
         if (color != null && color instanceof Number) {
             _ledOn = color as Number;
+        }
+        _useMilitaryFormat = Application.Properties.getValue("UseMilitaryFormat");
+        if (_useMilitaryFormat == null) {
+            _useMilitaryFormat = false;
         }
         _hideLeadingZero = Application.Properties.getValue("HideLeadingZero");
         if (_hideLeadingZero == null) {
@@ -198,6 +228,7 @@ class LEDWFView extends WatchUi.WatchFace {
             _dotSpacing = 4;
             _dotHSpacing = 5;
         }
+        _adjDateX = getDateXAdjustment(_screenWidth);
         precomputeCoordinates();
         refreshWeeklyActivityCache();
     }
@@ -480,12 +511,13 @@ class LEDWFView extends WatchUi.WatchFace {
         var weekday = info.day_of_week - 1; // 转换为0-6 (0=星期日)
         var month = info.month; // 月份
         var day = info.day; // 日期
+        var isMilitaryFormat = _useMilitaryFormat;
 
         // 判断AM/PM
         var isPM = (originalHours >= 12);
 
-        // 12小时制
-        if (!System.getDeviceSettings().is24Hour) {
+        // 非军用时间时，继续遵循系统 12/24 小时制
+        if (!isMilitaryFormat && !System.getDeviceSettings().is24Hour) {
             if (hours > 12) {
                 hours = hours - 12;
             } else if (hours == 0) {
@@ -503,15 +535,19 @@ class LEDWFView extends WatchUi.WatchFace {
         var digitWidth = _digitCols * _dotHSpacing;
         var digitHeight = _digitRows * _dotSpacing;
         var colonWidth = 2 * _dotHSpacing;
-        var gap = _dotHSpacing * 2;
+        var standardGap = _dotHSpacing * 2;
+        // 军事时间去掉冒号后，保留原时间区域总宽度，把空出来的空间均分给3个数字间距
+        var militaryGap = (4 * standardGap + colonWidth) / 3.0;
+        var timeGap = isMilitaryFormat ? militaryGap : standardGap;
 
-        // 冒号居中于屏幕水平中央
         var colonCenterScreenX = screenWidth / 2;
-        var startX = colonCenterScreenX - colonWidth / 2 - 2 * (digitWidth + gap);
+        var layoutStartX = colonCenterScreenX - colonWidth / 2 - 2 * (digitWidth + standardGap);
+        // 冒号模式和军事时间模式共用同一个左侧锚点，避免不同分辨率下整体漂移
+        var timeStartX = layoutStartX;
         var startY = (screenHeight - digitHeight) / 2;
 
         // 星期几在时间左上方
-        var weekdayX = startX - weekdayGap - weekdayWidth + _adjWeekdayX;
+        var weekdayX = layoutStartX - weekdayGap - weekdayWidth + _adjWeekdayX;
         var weekdayY = startY - (letterHeight + weekdayGap);
 
         // 绘制星期几
@@ -519,7 +555,7 @@ class LEDWFView extends WatchUi.WatchFace {
 
         // 在星期右边绘制日期 (月日)
         var dateGap = _dotHSpacing * 2;
-        var dateX = weekdayX + weekdayWidth + dateGap;
+        var dateX = weekdayX + weekdayWidth + dateGap + _adjDateX;
         var dateY = weekdayY;
 
         var separatorWidth = _dotHSpacing;
@@ -551,10 +587,10 @@ class LEDWFView extends WatchUi.WatchFace {
         // 绘制表情
         drawFace(dc, bbStartX, bbY, bodyBattery);
 
-        var currentX = startX;
+        var currentX = timeStartX;
 
         // 判断是否需要隐藏前导0
-        var is12Hour = !System.getDeviceSettings().is24Hour;
+        var is12Hour = !isMilitaryFormat && !System.getDeviceSettings().is24Hour;
         var shouldHideLeadingZero = _hideLeadingZero && is12Hour && hours < 10;
 
         // 小时十位（保留空格以保持对齐）
@@ -562,29 +598,31 @@ class LEDWFView extends WatchUi.WatchFace {
             var hourTens = hours / 10;
             drawDigit(dc, currentX, startY, hourTens);
         }
-        currentX += digitWidth + gap;
+        currentX += digitWidth + timeGap;
 
         // 小时个位
         drawDigit(dc, currentX, startY, hours % 10);
-        currentX += digitWidth + gap;
+        currentX += digitWidth + timeGap;
 
-        // 冒号
-        _colonX = currentX;
-        _colonY = startY;
-        var colonOn = (clockTime.sec % 2 == 0);
-        drawColon(dc, currentX, startY, colonOn);
-        currentX += colonWidth + gap;
+        if (!isMilitaryFormat) {
+            // 冒号
+            _colonX = currentX;
+            _colonY = startY;
+            var colonOn = (clockTime.sec % 2 == 0);
+            drawColon(dc, currentX, startY, colonOn);
+            currentX += colonWidth + timeGap;
+        }
 
         // 分钟十位
         drawDigit(dc, currentX, startY, minutes / 10);
-        currentX += digitWidth + gap;
+        currentX += digitWidth + timeGap;
 
         // 分钟个位
         drawDigit(dc, currentX, startY, minutes % 10);
-        currentX += digitWidth + gap;
+        currentX += digitWidth + timeGap;
 
         // 绘制AM/PM（仅12小时制，在时间右侧）
-        if (!System.getDeviceSettings().is24Hour) {
+        if (!isMilitaryFormat && !System.getDeviceSettings().is24Hour) {
             var ampmGap = _dotHSpacing;
             var ampmX = currentX + ampmGap + _adjAmpmX;
             var ampmY = startY + (digitHeight - letterHeight) / 2 + _adjAmpmY;
@@ -856,7 +894,9 @@ class LEDWFView extends WatchUi.WatchFace {
         updateSecondDot(dc, sec, true);
 
         // 闪烁冒号和心形
-        updateColon(dc, isOn);
+        if (!_useMilitaryFormat) {
+            updateColon(dc, isOn);
+        }
         updateHeart(dc, isOn);
 
         _prevSec = sec;

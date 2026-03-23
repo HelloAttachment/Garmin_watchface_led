@@ -36,6 +36,13 @@ class LEDWFApp extends Application.AppBase {
             new WatchUi.MenuItem("LED Color", colors[currentIndex], :ledColor, null)
         );
 
+        // 军用时间格式选项
+        var currentMilitaryTime = Application.Properties.getValue("UseMilitaryFormat") as Boolean;
+        var militaryTimeLabel = currentMilitaryTime ? "On" : "Off";
+        menu.addItem(
+            new WatchUi.ToggleMenuItem("Military Time", militaryTimeLabel, :militaryTime, currentMilitaryTime, null)
+        );
+
         // 隐藏前导零选项
         var currentHideZero = Application.Properties.getValue("HideLeadingZero") as Boolean;
         var hideZeroLabel = currentHideZero ? "On" : "Off";
@@ -74,7 +81,16 @@ class LEDWFSettingsDelegate extends WatchUi.Menu2InputDelegate {
     }
 
     function onSelect(item as WatchUi.MenuItem) as Void {
-        if (item.getId() == :hideZero) {
+        if (item.getId() == :militaryTime) {
+            var militaryItem = item as WatchUi.ToggleMenuItem;
+            var isMilitaryEnabled = militaryItem.isEnabled();
+            Application.Properties.setValue("UseMilitaryFormat", isMilitaryEnabled);
+            var app = getApp();
+            if (app._view != null) {
+                app._view.loadSettings();
+            }
+            WatchUi.requestUpdate();
+        } else if (item.getId() == :hideZero) {
             var toggleItem = item as WatchUi.ToggleMenuItem;
             var isEnabled = toggleItem.isEnabled();
             Application.Properties.setValue("HideLeadingZero", isEnabled);
@@ -82,6 +98,7 @@ class LEDWFSettingsDelegate extends WatchUi.Menu2InputDelegate {
             if (app._view != null) {
                 app._view.loadSettings();
             }
+            WatchUi.requestUpdate();
         } else if (item.getId() == :ledColor) {
             // 打开颜色子菜单
             var colorMenu = new WatchUi.Menu2({:title => "LED Color"});
@@ -120,6 +137,7 @@ class LEDWFColorDelegate extends WatchUi.Menu2InputDelegate {
         if (app._view != null) {
             app._view.loadSettings();
         }
+        WatchUi.requestUpdate();
         // 返回到表盘（跳过Settings菜单）
         WatchUi.popView(WatchUi.SLIDE_RIGHT);
         WatchUi.popView(WatchUi.SLIDE_RIGHT);
