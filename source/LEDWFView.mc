@@ -102,7 +102,7 @@ class LEDWFView extends WatchUi.WatchFace {
     private var _smallDigitPatterns as Array<Array<Number> > = [
         [6, 9, 9, 9, 6],      // 0
         [6, 14, 6, 6, 15],    // 1
-        [6, 9, 3, 6, 15],     // 2
+        [6, 9, 3, 4, 15],     // 2
         [6, 9, 3, 9, 6],      // 3
         [10, 10, 14, 2, 2],   // 4
         [15, 8, 14, 1, 14],   // 5
@@ -128,6 +128,9 @@ class LEDWFView extends WatchUi.WatchFace {
 
     // 设置：是否隐藏12小时制前导0
     private var _hideLeadingZero as Boolean = false;
+
+    // 低功耗状态，仅在 AMOLED 且需要防烧屏的设备上走 AOD 绘制分支
+    private var _isLowPowerMode as Boolean = false;
 
     // 缓存冒号和心形位置（供 onPartialUpdate 使用）
     private var _colonX as Number = 0;
@@ -193,6 +196,10 @@ class LEDWFView extends WatchUi.WatchFace {
         }
     }
 
+    function shouldDrawSecondMarquee() as Boolean {
+        return _screenWidth != 218;
+    }
+
     // 从设置中加载颜色
     function loadSettings() as Void {
         var color = Application.Properties.getValue("ForegroundColor");
@@ -209,6 +216,36 @@ class LEDWFView extends WatchUi.WatchFace {
         }
     }
 
+    function shouldUseBurnInProtectedAod() as Boolean {
+        var deviceSettings = System.getDeviceSettings();
+        if (deviceSettings != null && deviceSettings has :requiresBurnInProtection) {
+            return deviceSettings.requiresBurnInProtection;
+        }
+        return false;
+    }
+
+    function getAodDriftX(minute as Number) as Number {
+        switch (minute % 6) {
+            case 0: return -2;
+            case 1: return 0;
+            case 2: return 2;
+            case 3: return 2;
+            case 4: return 0;
+            default: return -2;
+        }
+    }
+
+    function getAodDriftY(minute as Number) as Number {
+        switch (minute % 6) {
+            case 0: return -2;
+            case 1: return -2;
+            case 2: return 0;
+            case 3: return 2;
+            case 4: return 2;
+            default: return 0;
+        }
+    }
+
     function onLayout(dc as Dc) as Void {
         loadSettings();
         _fireIcon = WatchUi.loadResource(Rez.Drawables.FireIcon) as BitmapResource;
@@ -219,6 +256,10 @@ class LEDWFView extends WatchUi.WatchFace {
             _dotSize = 6;
             _dotSpacing = 6;
             _dotHSpacing = 7;
+        } else if (_screenWidth == 280) {
+            _dotSize = 4;
+            _dotSpacing = 4;
+            _dotHSpacing = 5;
         } else if (_screenWidth >= 280) {
             _dotSize = 5;
             _dotSpacing = 5;
@@ -490,27 +531,85 @@ class LEDWFView extends WatchUi.WatchFace {
         }
     }
 
+    function drawAodMilitaryTime(dc as Dc, centerX as Number, y as Number, hours as Number, minutes as Number) as Void {
+        var digitWidth = _digitCols * _dotHSpacing;
+        var standardGap = _dotHSpacing * 2;
+        var colonWidth = 2 * _dotHSpacing;
+        var digitGap = ((4 * standardGap + colonWidth) / 3.0).toNumber();
+        var timeWidth = (4 * digitWidth + 3 * digitGap).toNumber();
+        var startX = (centerX - timeWidth / 2).toNumber();
+        var currentX = startX;
+
+        drawDigit(dc, currentX, y, hours / 10);
+        currentX += digitWidth + digitGap;
+
+        drawDigit(dc, currentX, y, hours % 10);
+        currentX += digitWidth + digitGap;
+
+        drawDigit(dc, currentX, y, minutes / 10);
+        currentX += digitWidth + digitGap;
+
+        drawDigit(dc, currentX, y, minutes % 10);
+    }
+
+    function drawAodDate(dc as Dc, centerX as Number, y as Number, month as Number, day as Number) as Void {
+        var digitWidth = _letterCols * _dotHSpacing;
+        var digitGap = _dotHSpacing;
+        var separatorWidth = _dotHSpacing;
+        var dateWidth = (4 * digitWidth + 3 * digitGap + separatorWidth).toNumber();
+        var startX = (centerX - dateWidth / 2).toNumber();
+        var separatorX = (startX + 2 * digitWidth + 2 * digitGap).toNumber();
+        var dayStartX = (separatorX + separatorWidth + digitGap).toNumber();
+
+        drawSmallDigit(dc, startX, y, month / 10);
+        drawSmallDigit(dc, startX + digitWidth + digitGap, y, month % 10);
+        drawDot(dc, separatorX, (y + (_letterRows * _dotSpacing) / 2).toNumber(), true);
+        drawSmallDigit(dc, dayStartX, y, day / 10);
+        drawSmallDigit(dc, dayStartX + digitWidth + digitGap, y, day % 10);
+    }
+
+    function drawLowPowerFace(dc as Dc, clockTime, month as Number, day as Number) as Void {
+        var digitHeight = _digitRows * _dotSpacing;
+        var letterHeight = _letterRows * _dotSpacing;
+        var verticalGap = _dotSpacing * 4;
+        var contentHeight = (digitHeight + verticalGap + letterHeight).toNumber();
+        var centerX = ((_screenWidth / 2) + getAodDriftX(clockTime.min)).toNumber();
+        var startY = (((_screenHeight - contentHeight) / 2) + getAodDriftY(clockTime.min)).toNumber();
+        var dateY = (startY + digitHeight + verticalGap).toNumber();
+
+        drawAodMilitaryTime(dc, centerX, startY, clockTime.hour, clockTime.min);
+        drawAodDate(dc, centerX, dateY, month, day);
+    }
+
     function onUpdate(dc as Dc) as Void {
         var screenWidth = _screenWidth;
         var screenHeight = _screenHeight;
+
+        // 获取时间和日期
+        var clockTime = System.getClockTime();
+        var now = Time.now();
+        var info = Time.Gregorian.info(now, Time.FORMAT_SHORT);
+        var month = info.month; // 月份
+        var day = info.day; // 日期
 
         // 清屏（必需：watchface 不调用 View.onUpdate，系统不会自动清除 DC）
         dc.setColor(_bgColor, _bgColor);
         dc.clear();
 
-        // 获取时间和日期
-        var clockTime = System.getClockTime();
+        if (_isLowPowerMode && shouldUseBurnInProtectedAod()) {
+            drawLowPowerFace(dc, clockTime, month, day);
+            _prevSec = null;
+            return;
+        }
 
-        // 绘制跑马灯秒针
-        drawSecondMarquee(dc, clockTime.sec);
+        // 218 分辨率下隐藏最外圈秒钟，避免画面过挤
+        if (shouldDrawSecondMarquee()) {
+            drawSecondMarquee(dc, clockTime.sec);
+        }
         var hours = clockTime.hour;
         var originalHours = hours;  // 保存原始小时用于判断AM/PM
         var minutes = clockTime.min;
-        var now = Time.now();
-        var info = Time.Gregorian.info(now, Time.FORMAT_SHORT);
         var weekday = info.day_of_week - 1; // 转换为0-6 (0=星期日)
-        var month = info.month; // 月份
-        var day = info.day; // 日期
         var isMilitaryFormat = _useMilitaryFormat;
 
         // 判断AM/PM
@@ -876,8 +975,24 @@ class LEDWFView extends WatchUi.WatchFace {
         dc.clearClip();
     }
 
-    // 熄屏模式下每秒调用，仅重绘秒针变化的点、冒号和心形
+    function onEnterSleep() as Void {
+        _isLowPowerMode = true;
+        _prevSec = null;
+        WatchUi.requestUpdate();
+    }
+
+    function onExitSleep() as Void {
+        _isLowPowerMode = false;
+        _prevSec = null;
+        WatchUi.requestUpdate();
+    }
+
+    // 亮屏或 MIP 熄屏模式下每秒调用；AMOLED AOD 直接跳过秒级局部刷新
     function onPartialUpdate(dc as Dc) as Void {
+        if (_isLowPowerMode && shouldUseBurnInProtectedAod()) {
+            return;
+        }
+
         if (System.getSystemStats().battery <= 20.0) {
             return;
         }
@@ -885,13 +1000,15 @@ class LEDWFView extends WatchUi.WatchFace {
         var sec = System.getClockTime().sec;
         var isOn = (sec % 2 == 0);
 
-        // 清除上一秒的点（变为 LED 灭色）
-        if (_prevSec != null && _prevSec != sec) {
-            updateSecondDot(dc, _prevSec as Number, false);
-        }
+        if (shouldDrawSecondMarquee()) {
+            // 清除上一秒的点（变为 LED 灭色）
+            if (_prevSec != null && _prevSec != sec) {
+                updateSecondDot(dc, _prevSec as Number, false);
+            }
 
-        // 绘制当前秒的点（变为 LED 亮色）
-        updateSecondDot(dc, sec, true);
+            // 绘制当前秒的点（变为 LED 亮色）
+            updateSecondDot(dc, sec, true);
+        }
 
         // 闪烁冒号和心形
         if (!_useMilitaryFormat) {
